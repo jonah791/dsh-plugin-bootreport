@@ -82,8 +82,8 @@ web 进程启动 ──┬─> 本插件 apply ─> scanBuilds(self-plugins/*/li
 | A4 | 判据能抓到「构建晚于启动」 | 证伪测试：`touch` 一个插件 lib → `--live` 报「需重启才生效：dsh-plugin-bootreport(1789351603272)」；复原 mtime → 报「全生态正跑最新构建」 | 已证（两态均实测） |
 | A5 | 工具输出通过 schema | 线上调用 `plugin_boot_status` → `进程启动 1789351547742｜live 50｜stale 0`，无 schema 报错 | 已证 |
 | A6 | 生态级效果 | 审计器 S5 缺口 **48 → 0**，全生态通过率 19% → 32%（代价 = 一个插件） | 已证（记分卡 + `--live`） |
-| A7 | 第三方四形态全部可盘点（git pin / tarball / registry / file），自研与官方不混入 | `node --test tests/third-party.test.mjs`（8 条，含夹具：git-pin 带 bundle、registry 未安装） | 已证（单测；线上见 A8） |
-| A8 | 线上工具面能答「装了哪些第三方、哪些没随本次启动组合」 | `plugin_boot_status` → `thirdPartyTotal≥1`、`thirdParty` 含 `dsh-x-opencode-session@0.1.0 [third-party-git] bundle=true activatedAtBoot=true`；`thirdPartyPending` 为空 | **待线上验收**（重启后实测；判据 = 该条目出现且 `activatedAtBoot=true`） |
+| A7 | 第三方四形态全部可盘点（git pin / tarball / registry / file），自研与官方不混入 | `node --test tests/third-party.test.mjs`（9 条，含夹具：git-pin 带 bundle、registry 未安装） | 已证（单测；线上见 A8） |
+| A8 | 线上工具面能答「装了哪些第三方、哪些没随本次启动组合」 | `plugin_boot_status` → `thirdPartyTotal≥1`、`thirdParty` 含 `dsh-x-opencode-session@0.1.0 [third-party-git] bundle=true activatedAtBoot=true`；`thirdPartyPending` 为空 | **已证（2026-09-14 15:47:57 重启后实测）**：工具渲染「第三方 1 个」且无 pending；台账尾行（pid 7588）含 `thirdParty[0].activatedAtBoot=true`、`spec` 带 commit pin |
 
 ## 8 · 与实现的关系
 
