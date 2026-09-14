@@ -12,6 +12,8 @@ import { appendFileSync, mkdirSync, readFileSync, readdirSync, renameSync, statS
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
+import { collectThirdParty, type ThirdPartyEntry } from './third-party.ts'
+
 /** 单个插件的构建标识。 */
 export interface PluginBuild {
   name: string
@@ -27,6 +29,13 @@ export interface BootLine {
   plugins: PluginBuild[]
   live: string[]
   stale: string[]
+  /**
+   * 第三方插件（§5.23）：来自各 profile 的 dependencies + `dsh.profile.bundles`。
+   * **不参与 live/stale 判定**——那是「我构建的产物 vs 进程起点」的判据，第三方没有这一环；
+   * 它自带 `activatedAtBoot`（装得早于进程起点 ⇒ 本次启动已组合）。
+   * 老账本行没有这一字段（可选），解析不报错。
+   */
+  thirdParty?: ThirdPartyEntry[]
 }
 
 /** 解析 DSH_HOME：环境变量优先，缺省 `<homedir>/.dsh`（与既有插件同约定）。 */
@@ -108,6 +117,7 @@ export function serializeBootLine(line: BootLine): string {
     live: line.live,
     stale: line.stale,
     plugins: line.plugins,
+    ...(line.thirdParty === undefined ? {} : { thirdParty: line.thirdParty }),
   })
 }
 
@@ -174,5 +184,15 @@ export function currentBootLine(home: string, roots?: string[]): BootLine {
   }
   const builds = [...seen.values()]
   const { live, stale } = classify(builds, startMs)
-  return { atMs: Date.now(), processStartMs: startMs, pid: process.pid, plugins: builds, live, stale }
+  // 第三方那一档（§5.23）：self-plugins 之外的插件也要能被盘点到，否则「已盘点全部」是假话
+  const { entries: thirdParty } = collectThirdParty(home, startMs)
+  return {
+    atMs: Date.now(),
+    processStartMs: startMs,
+    pid: process.pid,
+    plugins: builds,
+    live,
+    stale,
+    thirdParty,
+  }
 }

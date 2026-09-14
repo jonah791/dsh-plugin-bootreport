@@ -1,6 +1,6 @@
 <!--
   DSH 插件生态公约声明（plugin-ecosystem-convention · 组合优先/声明清晰/兼容优先）
-  purpose: 启动自报账本——web 启动时把「本进程加载了哪些插件构建」落一行到 <DSH_HOME>/plugin-boot.jsonl，一条命令判全生态「构建是否生效」（rulebook §5.11 规则 6 的生态级仪器）
+  purpose: 启动自报账本——web 启动时把「本进程加载了哪些插件构建」落一行到 <DSH_HOME>/plugin-boot.jsonl，一条命令判全生态「构建是否生效」（rulebook §5.11 规则 6 的生态级仪器）；含第三方插件档（profile 依赖四形态 + dsh.profile.bundles，§5.23）
   inject: 'tools'
   tools: plugin_boot_status
   runtime: host-only（零 loader 耦合：判据来自文件系统 mtime + 进程起点，不 inject loader）
@@ -11,10 +11,10 @@
 # dsh-plugin-bootreport
 
 <p align="center">
-  <a href="https://github.com/jonah791/dsh-plugin-bootreport"><img src="https://img.shields.io/badge/version-0.1.0-blue" alt="version"></a>
+  <a href="https://github.com/jonah791/dsh-plugin-bootreport"><img src="https://img.shields.io/badge/version-0.1.1-blue" alt="version"></a>
   <img src="https://img.shields.io/badge/License-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/TypeScript-3178C6" alt="TypeScript">
-  <img src="https://img.shields.io/badge/tests-10%20passed-brightgreen" alt="tests">
+  <img src="https://img.shields.io/badge/tests-19%20passed-brightgreen" alt="tests">
 </p>
 
 **一句话**：每次 web 启动写一行「本进程加载了哪些插件构建」的账，配一个 `plugin_boot_status` 工具现算「磁盘上的构建 vs 进程起点」——把「构建是否真的生效」从逐个插件的猜测变成一个可查的账本。
@@ -25,9 +25,11 @@
 
 | 工具 | 用途 |
 |------|------|
-| `plugin_boot_status` | 读启动自报账本 + **现场复算**：最近一次 web 启动时间（`atMs`/`processStartMs`/`pid`）、启动时快照、以及「现在磁盘上的构建 vs 进程起点」的实时 `live`/`stale` 清单（快照盖不住启动之后的重建） |
+| `plugin_boot_status` | 读启动自报账本 + **现场复算**：最近一次 web 启动时间（`atMs`/`processStartMs`/`pid`）、启动时快照、以及「现在磁盘上的构建 vs 进程起点」的实时 `live`/`stale` 清单（快照盖不住启动之后的重建）；另答**第三方档**——`thirdPartyTotal` / `thirdParty[]`（一行一条：`name@version [来源档] profile= bundle= activatedAtBoot= spec=<pin>`）/ `thirdPartyPending[]`（装了但没随本次启动组合的） |
 
-装载时（`apply`）本插件自行写一行账，并在 `stale` 非空时打 `logger.warn`（进程在跑旧码，重启才生效）。
+装载时（`apply`）本插件自行写一行账，并在 `stale` 非空时打 `logger.warn`（进程在跑旧码，重启才生效）；**第三方未随本次启动组合**时同样告警（第三方没有构建门控，这是它唯一的生效提示，§5.23）。
+
+账本一行 = 一次启动，`plugins[]` 是**自研**构建（走 `lib-mtime vs 进程起点` 判据），`thirdParty[]` 是**第三方**（走「装得早于进程起点」判据 + `bundle` 标记）——两档判据不同，因为第三方的产物不是我在本机构建的。
 
 ## 快速开始
 
@@ -110,16 +112,23 @@ tail -3 "$DSH_HOME/plugin-boot.jsonl"
 ## 测试
 
 ```bash
-npm test        # = node --test tests/ledger.test.mjs
+npm test        # = node --test "tests/*.test.mjs"
 ```
 
-**10 例离线测试**（10/10 通过），跑 `lib/` 产物（与运行时同源）：
+**19 例离线测试**（19/19 通过），跑 `lib/` 产物（与运行时同源）：
 
-- 路径与身份：`resolveHome` 环境变量优先/缺省回落、`bootLedgerPath`；
-- 判据自洽：`currentBootLine` 真跑一次本机扫描，断言 `live + stale = 总数`、`pid` 为本进程；
-- 分类边界：`classify` 的 live/stale 划分与容差；
-- 序列化：`serializeBootLine` / `parseBootLines` 往返稳定（坏行跳过）；
-- **尸体测试**：不可写路径 → `appendBootLine` 返回 `false` 且**不抛**（不变量 I4）。
+- **`tests/ledger.test.mjs`（10 例）**——账本本体：
+  - 路径与身份：`resolveHome` 环境变量优先/缺省回落、`bootLedgerPath`；
+  - 判据自洽：`currentBootLine` 真跑一次本机扫描，断言 `live + stale = 总数`、`pid` 为本进程；
+  - 分类边界：`classify` 的 live/stale 划分与容差；
+  - 序列化：`serializeBootLine` / `parseBootLines` 往返稳定（坏行跳过）；
+  - **尸体测试**：不可写路径 → `appendBootLine` 返回 `false` 且**不抛**（不变量 I4）。
+- **`tests/third-party.test.mjs`（9 例）**——第三方档（§5.23）：
+  - 档位判定：自研 `link:` / 本地 `link:` / 官方 scope / git pin / codeload tarball / `file:` / registry 七档；
+  - **隐私红线**：`redactSpec` 擦掉 URL userinfo 与 token 类参数，但**保留 git pin**（升级回退的唯一指纹）；
+  - 生效推导：`deriveActivated` 容差边界（起点 +1000ms 算已组合、+1001ms 不算、未安装不算）；
+  - 夹具盘点：`scanThirdParty` 在假 profile 上只收第三方档、标出 `bundle`、未安装如实写「未安装」；
+  - **尸体测试**：profiles 目录不存在 / `package.json` 坏 JSON → 返回空、**不抛**。
 
 **无需网络、无需外部依赖、无需 WSL**——纯本地文件系统 + 纯函数，任意环境可直接跑。
 
@@ -130,12 +139,13 @@ npm test        # = node --test tests/ledger.test.mjs
 - **观测绝不反噬**：落盘失败一律吞错返回 `bool`，配尸体测试——账本坏了不影响任何业务路径。
 - **一行一次启动，不做增量状态**：账本是 append-only 事件流而非「当前状态文件」，所以能事后回答「那次重启后是 live 还是 stale」，而不是只知道此刻。
 - **一个观察者而不是 N 份实现**：技能 `plugin-maintainability` 准则 C1（机制必须自证）在生态平面的落地——把判据收敛到一处，避免 49 个插件各自维护「什么算生效」而互相漂移。
+- **第三方不能用自研的判据**（2026-09-14 补，§5.23）：第三方插件的产物来自上游 tarball，**没有「我构建的 lib」**——硬套 `lib-mtime vs 进程起点` 会得到假结论。故第三方走独立档：记 `spec`（pin）+ 安装 mtime，判据是「**装得早于进程起点** ⇒ 本次启动的组合已包含它」（`activatedAtBoot`），并按 `bundle` 标出它是自述式挂载。补这一档的原因很直白：**只扫 `self-plugins` 的仪器看不见主人新装的第三方插件**，而「已盘点全部插件」这句话当时并不成立。
 
 ## 相关文档
 
 | 文档 | 内容 |
 |------|------|
-| [`docs/semantic.md`](docs/semantic.md) | **权威契约**：定位与反定位、术语、概念模型与不变量（I1–I4）、契约（含调用点清单）、边界与信任、可证伪验收清单（A1–A6）、实践修订记录、未决问题 |
+| [`docs/semantic.md`](docs/semantic.md) | **权威契约**：定位与反定位、术语、概念模型与不变量（I1–I4）、契约（含调用点清单）、边界与信任、可证伪验收清单（A1–A8）、实践修订记录、未决问题（U1–U3） |
 | [alice-digital-life](https://github.com/jonah791/alice-digital-life) | 本插件所属生态的中心索引（全部自研插件） |
 | 技能 `plugin-maintainability` / `dsh-plugin-ecosystem-audit` / `plugin-workflow` | 可维护性工程（五问判据）、生态对齐审计、插件生命周期 |
 
@@ -145,4 +155,4 @@ MIT © jonah791
 
 ---
 
-本插件属于我的数字生命爱丽丝（[alice-digital-life](https://github.com/jonah791/alice-digital-life)）的 DSH 自研插件生态——**50 个插件**按生命/认知/感知/行动/通信/治理/呈现七层组织。
+本插件属于我的数字生命爱丽丝（[alice-digital-life](https://github.com/jonah791/alice-digital-life)）的 DSH 自研插件生态——**49 个自研插件**按生命/认知/感知/行动/通信/治理/呈现/安全八层组织（另有第三方插件，管理模式见 AGENTS.md §5.23）。

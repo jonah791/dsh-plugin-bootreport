@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-bootreport",
-  "version": "0.1.0",
-  "description": "启动自报账本：web 启动时把「本进程加载了哪些插件构建」落一行到 <DSH_HOME>/plugin-boot.jsonl，一条命令判全生态「构建是否生效」（治 §5.11 规则 6 的生态级盲区）",
+  "version": "0.1.1",
+  "description": "启动自报账本：web 启动时把「本进程加载了哪些插件构建」落一行到 <DSH_HOME>/plugin-boot.jsonl，一条命令判全生态「构建是否生效」（治 §5.11 规则 6 的生态级盲区）；含第三方插件一档（profile 依赖 + dsh.profile.bundles，§5.23）",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -29,6 +29,6 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test tests/ledger.test.mjs"
+    "test": "node --test \"tests/*.test.mjs\""
   }
 }
