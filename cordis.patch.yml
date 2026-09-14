@@ -1,0 +1,4 @@
+- insert:
+    - id: agent-plugin-bootreport
+      name: dsh-plugin-bootreport
+      config: {}
