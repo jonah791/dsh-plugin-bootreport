@@ -14,7 +14,7 @@
   <a href="https://github.com/jonah791/dsh-plugin-bootreport"><img src="https://img.shields.io/badge/version-0.1.1-blue" alt="version"></a>
   <img src="https://img.shields.io/badge/License-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/TypeScript-3178C6" alt="TypeScript">
-  <img src="https://img.shields.io/badge/tests-19%20passed-brightgreen" alt="tests">
+  <img src="https://img.shields.io/badge/tests-31%20passed-brightgreen" alt="tests">
 </p>
 
 **一句话**：每次 web 启动写一行「本进程加载了哪些插件构建」的账，配一个 `plugin_boot_status` 工具现算「磁盘上的构建 vs 进程起点」——把「构建是否真的生效」从逐个插件的猜测变成一个可查的账本。
