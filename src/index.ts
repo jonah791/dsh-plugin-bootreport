@@ -22,6 +22,7 @@ import {
   resolveHome,
 } from './ledger.ts'
 import { collectThirdParty, summarizeThirdParty } from './third-party.ts'
+import { scanSidecarDir, sidecarReportLines } from './sidecar.ts'
 
 export const name = 'agent-plugin-bootreport'
 export const inject = ['tools'] as const
@@ -120,6 +121,61 @@ export function apply(ctx: Context, config: Config): void {
         thirdPartyTotal: entries.length,
         thirdParty,
         thirdPartyPending: pending,
+      }
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'sidecar_health',
+    description:
+      '侧车健康巡检：扫 `<DSH_HOME>` 下的 `.jsonl` / `.log`，报告体积、**尾部行重复率**与最后写入时间，'
+      + '并标出**疑似自激**（重复率高 + 体积大 + 最近仍在写）。'
+      + '存在理由：2026-10-03 `dsh-agent-toolface` 补挂自激写了 231 万行 / 439 MB、烧 34% 单核累计 10.8 小时，'
+      + '而当时**没有任何信号**——主人从会话轨迹上才看出来。本工具把「机制在悄悄空转」变成可感知读数。'
+      + '口径：只读每个文件**尾部 256 KB**（大文件全读不可行，尾部最能反映当前状态）；'
+      + '「重复率高」本身不等于故障（心跳类日志天然重复），判据是**与体积和时间窗联看**。',
+    parameters: {
+      dir: { type: 'string', description: '巡检目录（缺省 DSH_HOME）' },
+      minMb: { type: 'number', description: '判定自激的最小体积（MB，缺省 1）' },
+      staleMinutes: { type: 'number', description: '「最近仍在写」窗口（分钟，缺省 30）' },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          ok: { type: 'boolean', required: true },
+          dir: { type: 'string', required: true },
+          total: { type: 'number', required: true },
+          suspectCount: { type: 'number', required: true },
+          suspects: { type: 'array', required: true, items: { type: 'string' } },
+          rows: { type: 'array', required: true, items: { type: 'object', additionalProperties: true } },
+        },
+      },
+      render: (_args: unknown, v: any) => [{
+        type: 'text',
+        text: sidecarReportLines(Array.isArray(v.rows) ? v.rows : []).join('\n')
+          + (v.ok === true ? '' : '\n（巡检未完成）'),
+      }],
+    },
+    async execute(args: { dir?: string; minMb?: number; staleMinutes?: number }) {
+      const dir = typeof args.dir === 'string' && args.dir !== '' ? args.dir : home
+      const nowMs = Date.now()
+      const readings = scanSidecarDir(dir, nowMs, {
+        minBytes: Math.max(1, Math.round(args.minMb ?? 1)) * 1_048_576,
+        staleMinutes: args.staleMinutes ?? 30,
+      })
+      const suspects = readings.filter((r) => r.suspectSpin).map((r) => r.name)
+      return {
+        ok: true,
+        dir,
+        total: readings.length,
+        suspectCount: suspects.length,
+        suspects,
+        rows: readings.map((r) => ({
+          name: r.name, sizeBytes: r.sizeBytes, ageMinutes: r.ageMinutes,
+          sampleLines: r.sampleLines, dupRatio: r.dupRatio, suspectSpin: r.suspectSpin,
+        })),
       }
     },
   }))
