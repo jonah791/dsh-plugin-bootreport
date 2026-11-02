@@ -59,6 +59,7 @@ web 进程启动 ──┬─> 本插件 apply ─> scanBuilds(self-plugins/*/li
 - 写入：`apply()` → `currentBootLine()` → `appendBootLine()`（每次 web 启动一次）
 - 读取：`plugin_boot_status` 工具 → `readLastBoot()`；外部 `scripts/plugin-maintainability-audit.py --live`
 - 判据复算：`classify()`（离线可用，与写入同源）
+- 侧车巡检：`sidecar_health` 工具 → 扫 `<DSH_HOME>` 下 `.jsonl` / `.log`，报**体积 / 尾部行重复率 / 最后写入时间**，并标出**疑似自激**（重复率高 + 体积大 + 最近仍在写）。只读每个文件尾部 256 KB；「重复率高」本身不算故障（心跳类天然重复），判据是**与体积和时间窗联看**
 
 ## 5 · 边界与信任
 
