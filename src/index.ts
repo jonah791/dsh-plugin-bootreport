@@ -64,6 +64,7 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.tools.register(defineTool({
     name: 'plugin_boot_status',
+    deferLoading: true,
     description: '读启动自报账本 + **现场复算**：最近一次 web 启动时间、启动时快照、以及「现在磁盘上的构建 vs 进程起点」的实时 live/stale 清单（快照盖不住启动之后的重建）。含**第三方插件**一档（§5.23：来自各 profile 依赖 + `dsh.profile.bundles`，自研/第三方两条管理路见 AGENTS.md §5.23）',
     parameters: {},
     output: {
@@ -127,6 +128,7 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.tools.register(defineTool({
     name: 'sidecar_health',
+    deferLoading: true,
     description:
       '侧车健康巡检：扫 `<DSH_HOME>` 下的 `.jsonl` / `.log`，报告体积、**尾部行重复率**与最后写入时间，'
       + '并标出**疑似自激**（重复率高 + 体积大 + 最近仍在写）。'
